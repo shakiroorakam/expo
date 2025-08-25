@@ -1,52 +1,24 @@
 import React, { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import HomePage from './pages/HomePage';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 import UserFlow from './pages/UserFlow'; 
 
-// This new component will handle the routing logic
-const AppRouter = () => {
-  const [route, setRoute] = useState(window.location.pathname);
+// A wrapper component to handle navigation logic
+const AdminLoginWrapper = () => {
+  const navigate = useNavigate();
+  return <AdminLogin setPage={(page) => navigate(page === 'home' ? '/' : '/admin/dashboard')} />;
+};
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setRoute(window.location.pathname);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
-
-  const navigate = (path) => {
-    window.history.pushState({}, '', path);
-    setRoute(path);
-  };
-
-  let componentToRender;
-
-  // Check the current route and render the correct component
-  if (route.startsWith('/admin/dashboard')) {
-    componentToRender = <AdminDashboard setPage={(page) => navigate(page === 'home' ? '/' : '/admin')} />;
-  } else if (route.startsWith('/admin')) {
-    componentToRender = <AdminLogin setPage={(page) => navigate(page === 'home' ? '/' : '/admin/dashboard')} />;
-  } else {
-    // By default, show the main user-facing application
-    componentToRender = <App />;
-  }
-
-  return (
-    <>
-      {/* CSS links are now here, so they apply to ALL routes */}
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-      <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet" />
-      {componentToRender}
-    </>
-  );
-}
+const AdminDashboardWrapper = () => {
+  const navigate = useNavigate();
+  return <AdminDashboard setPage={(page) => navigate(page === 'home' ? '/' : '/admin')} />;
+};
 
 
-function App() {
+// Main user-facing application component
+function MainApp() {
   const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showUserFlow, setShowUserFlow] = useState(false);
@@ -99,6 +71,24 @@ function App() {
         <HomePage onRegisterClick={handleRegisterClick} />
       )}
     </div>
+  );
+}
+
+
+// The main AppRouter component that sets up the HashRouter
+const AppRouter = () => {
+  return (
+    <>
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+      <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet" />
+      <HashRouter>
+        <Routes>
+          <Route path="/admin" element={<AdminLoginWrapper />} />
+          <Route path="/admin/dashboard" element={<AdminDashboardWrapper />} />
+          <Route path="/" element={<MainApp />} />
+        </Routes>
+      </HashRouter>
+    </>
   );
 }
 
