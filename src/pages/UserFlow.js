@@ -123,11 +123,11 @@ const RegisterStep = ({ setCurrentUser }) => {
             <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                     <label htmlFor="name" className="form-label">Full Name</label>
-                    <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="form-control form-control-lg" placeholder="e.g., John Doe" required disabled={loading} />
+                    <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="form-control form-control-lg" placeholder="Your Name" required disabled={loading} />
                 </div>
                 <div className="mb-4">
                     <label htmlFor="mobile" className="form-label">Mobile Number</label>
-                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} className="form-control form-control-lg" placeholder="e.g., 9876543210" required disabled={loading} />
+                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} className="form-control form-control-lg" placeholder="Mobile number" required disabled={loading} />
                 </div>
                 <div className="d-grid">
                     <button 
