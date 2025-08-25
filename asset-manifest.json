@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/expo/static/css/main.b4f15ef6.css",
-    "main.js": "/expo/static/js/main.49675e42.js",
+    "main.js": "/expo/static/js/main.ecd22fb1.js",
     "index.html": "/expo/index.html",
     "main.b4f15ef6.css.map": "/expo/static/css/main.b4f15ef6.css.map",
-    "main.49675e42.js.map": "/expo/static/js/main.49675e42.js.map"
+    "main.ecd22fb1.js.map": "/expo/static/js/main.ecd22fb1.js.map"
   },
   "entrypoints": [
     "static/css/main.b4f15ef6.css",
-    "static/js/main.49675e42.js"
+    "static/js/main.ecd22fb1.js"
   ]
 }
