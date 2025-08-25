@@ -221,7 +221,8 @@ const CertificateStep = ({ currentUser, onLogout }) => {
     const canvasRef = useRef(null);
     const [modalMessage, setModalMessage] = useState('');
     
-    const certificateTemplateUrl = '/participation.jpeg';
+    const certificateTemplateUrl = process.env.PUBLIC_URL + '/participation.jpeg';
+    
 
     useEffect(() => {
         const canvas = canvasRef.current;
