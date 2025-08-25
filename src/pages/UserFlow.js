@@ -1,7 +1,54 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../firebase/config';
 import Modal from '../components/Modal';
+
+// --- New Feedback Modal Component ---
+const FeedbackModal = ({ user, onSubmit, onSkip }) => {
+    const [feedback, setFeedback] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await onSubmit(feedback);
+        setLoading(false);
+    };
+
+    return (
+        <div className="modal show fade" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                    <div className="modal-header">
+                        <h5 className="modal-title">Feedback & Suggestions</h5>
+                        <button type="button" className="btn-close" onClick={onSkip}></button>
+                    </div>
+                    <form onSubmit={handleSubmit}>
+                        <div className="modal-body">
+                            <p className="text-muted">We'd love to hear your thoughts on the event! Your feedback helps us improve.</p>
+                            <textarea
+                                className="form-control"
+                                rows="4"
+                                value={feedback}
+                                onChange={(e) => setFeedback(e.target.value)}
+                                placeholder="Type your feedback here..."
+                                required
+                            ></textarea>
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-secondary" onClick={onSkip}>Skip</button>
+                            <button type="submit" className="btn btn-primary" disabled={loading}>
+                                {loading ? <span className="spinner-border spinner-border-sm"></span> : 'Submit Feedback'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 // --- Main UserFlow Component ---
 const UserFlow = ({ currentUser, setCurrentUser, onLogout }) => {
@@ -28,8 +75,9 @@ const UserFlow = ({ currentUser, setCurrentUser, onLogout }) => {
     const steps = ['Register', 'Check-In', 'Certificate'];
 
     return (
-        <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center p-4" style={{backgroundColor: '#e9ecef'}}>
-            <div className="container-fluid" style={{ maxWidth: '900px' }}>
+        <div className="min-vh-100 d-flex flex-column align-items-center justify-content-center p-2 p-md-4" style={{backgroundColor: '#e9ecef'}}>
+            {/* The container class is responsive by default, using more width on smaller screens */}
+            <div className="container">
                 <div className="mb-5">
                     <div className="d-flex justify-content-between align-items-center">
                         {steps.map((title, index) => {
@@ -58,7 +106,7 @@ const UserFlow = ({ currentUser, setCurrentUser, onLogout }) => {
                 </div>
                 
                 <div className="card shadow-lg border-0">
-                    <div className="card-body p-5">
+                    <div className="card-body p-3 p-md-5">
                         {renderStepContent()}
                     </div>
                 </div>
@@ -67,8 +115,7 @@ const UserFlow = ({ currentUser, setCurrentUser, onLogout }) => {
     );
 };
 
-// --- Sub-components for each step ---
-
+// --- RegisterStep (No changes here) ---
 const RegisterStep = ({ setCurrentUser }) => {
     const [name, setName] = useState('');
     const [mobile, setMobile] = useState('');
@@ -94,54 +141,28 @@ const RegisterStep = ({ setCurrentUser }) => {
             setCurrentUser(newUser);
         } catch (err) {
             setError('Failed to register. Please try again.');
-            setLoading(false); // Ensure loading is stopped on error
+        } finally {
+            setLoading(false);
         }
-        // No finally block needed as loading is handled in success/error cases
     };
     
     return (
         <div>
-            {/* Added a style tag for the pulsing animation */}
-            <style>
-            {`
-                @keyframes pulse {
-                    0%, 100% {
-                        opacity: 1;
-                    }
-                    50% {
-                        opacity: 0.7;
-                    }
-                }
-                .pulsing-animation {
-                    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-                }
-            `}
-            </style>
             <h2 className="h3 fw-bold text-center mb-3 text-primary">Create Your Account</h2>
             <p className="text-center text-muted mb-4">Fill in your details to begin the event check-in.</p>
             {error && <div className="alert alert-danger">{error}</div>}
             <form onSubmit={handleSubmit}>
                 <div className="mb-3">
                     <label htmlFor="name" className="form-label">Full Name</label>
-                    <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="form-control form-control-lg" placeholder="Your Name" required disabled={loading} />
+                    <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} className="form-control form-control-lg" placeholder="Your Name" required />
                 </div>
                 <div className="mb-4">
                     <label htmlFor="mobile" className="form-label">Mobile Number</label>
-                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} className="form-control form-control-lg" placeholder="Mobile number" required disabled={loading} />
+                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} className="form-control form-control-lg" placeholder="Mobile No." required />
                 </div>
                 <div className="d-grid">
-                    <button 
-                        type="submit" 
-                        disabled={loading} 
-                        // Added a conditional class for the animation
-                        className={`btn btn-primary btn-lg ${loading ? 'pulsing-animation' : ''}`}
-                    >
-                        {loading ? (
-                            <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Registering...
-                            </>
-                        ) : 'Register and Start'}
+                    <button type="submit" disabled={loading} className="btn btn-primary btn-lg">
+                        {loading ? <span className="spinner-border spinner-border-sm"></span> : 'Register and Start'}
                     </button>
                 </div>
             </form>
@@ -149,10 +170,12 @@ const RegisterStep = ({ setCurrentUser }) => {
     );
 };
 
+// --- CheckInStep (Updated with feedback logic) ---
 const CheckInStep = ({ currentUser, setCurrentUser, onLogout }) => {
     const [checkIns, setCheckIns] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const currentCheckInIndex = currentUser.currentCheckInIndex || 0;
 
     useEffect(() => {
@@ -168,14 +191,37 @@ const CheckInStep = ({ currentUser, setCurrentUser, onLogout }) => {
         fetchCheckIns();
     }, []);
 
+    const proceedToCertificate = async () => {
+        const userDocRef = doc(db, "users", currentUser.id);
+        await updateDoc(userDocRef, { allChecksCompleted: true });
+        const updatedUser = { ...currentUser, allChecksCompleted: true };
+        setCurrentUser(updatedUser);
+    };
+
+    const handleFeedbackSubmit = async (feedbackText) => {
+        if (feedbackText.trim()) {
+            await addDoc(collection(db, "feedback"), {
+                userId: currentUser.id,
+                name: currentUser.name,
+                feedback: feedbackText,
+                submittedAt: new Date()
+            });
+        }
+        setShowFeedbackModal(false);
+        await proceedToCertificate();
+    };
+
     const handleCheckIn = async () => {
         const nextIndex = currentCheckInIndex + 1;
         const userDocRef = doc(db, "users", currentUser.id);
         try {
-            const isCompleting = nextIndex >= checkIns.length;
-            await updateDoc(userDocRef, { allChecksCompleted: isCompleting, currentCheckInIndex: nextIndex });
-            const updatedUser = { ...currentUser, allChecksCompleted: isCompleting, currentCheckInIndex: nextIndex };
-            setCurrentUser(updatedUser);
+            if (nextIndex >= checkIns.length) {
+                setShowFeedbackModal(true);
+            } else {
+                await updateDoc(userDocRef, { currentCheckInIndex: nextIndex });
+                const updatedUser = { ...currentUser, currentCheckInIndex: nextIndex };
+                setCurrentUser(updatedUser);
+            }
         } catch (err) { setError('Something went wrong. Please try again.'); }
     };
 
@@ -186,43 +232,56 @@ const CheckInStep = ({ currentUser, setCurrentUser, onLogout }) => {
     const progress = checkIns.length > 0 ? (currentCheckInIndex / checkIns.length) * 100 : 0;
 
     return (
-        <div>
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2 className="h3 fw-bold">Hello, {currentUser.name}!</h2>
-                <button onClick={onLogout} className="btn btn-sm btn-outline-danger">Start Over</button>
-            </div>
-            <p className="text-muted mb-4">Complete the steps below to earn your certificate.</p>
-            
-            <div className="progress mb-5" style={{height: '10px'}}>
-                <div className="progress-bar bg-primary" role="progressbar" style={{ width: `${progress}%` }}></div>
-            </div>
-            
-            {currentCheckIn ? (
-                <div className="card bg-light border-0 text-center p-4">
-                    <div className="card-body">
-                        <h3 className="h4 fw-bold mb-4">{currentCheckIn.name}</h3>
-                        <button onClick={handleCheckIn} className="btn btn-success btn-lg">
-                           <i className="bi bi-check-circle-fill me-2"></i> Mark as Complete
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="text-center p-4">
-                    <i className="bi bi-award-fill text-success" style={{fontSize: '4rem'}}></i>
-                    <h3 className="h4 fw-bold mt-3 mb-3">All Steps Completed!</h3>
-                    <p className="text-muted">Great job! You're ready to create your certificate.</p>
-                </div>
+        <>
+            {showFeedbackModal && (
+                <FeedbackModal 
+                    user={currentUser} 
+                    onSubmit={handleFeedbackSubmit} 
+                    onSkip={() => {
+                        setShowFeedbackModal(false);
+                        proceedToCertificate();
+                    }}
+                />
             )}
-        </div>
+            <div>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <h2 className="h3 fw-bold">Hello, {currentUser.name}!</h2>
+                    <button onClick={onLogout} className="btn btn-sm btn-outline-danger">Start Over</button>
+                </div>
+                <p className="text-muted mb-4">Complete the steps below to earn your certificate.</p>
+                
+                <div className="progress mb-5" style={{height: '10px'}}>
+                    <div className="progress-bar bg-primary" role="progressbar" style={{ width: `${progress}%` }}></div>
+                </div>
+                
+                {currentCheckIn ? (
+                    <div className="card bg-light border-0 text-center p-4">
+                        <div className="card-body">
+                            <h3 className="h4 fw-bold mb-4">{currentCheckIn.name}</h3>
+                            <button onClick={handleCheckIn} className="btn btn-success btn-lg">
+                               <i className="bi bi-check-circle-fill me-2"></i> Mark as Complete
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center p-4">
+                        <i className="bi bi-award-fill text-success" style={{fontSize: '4rem'}}></i>
+                        <h3 className="h4 fw-bold mt-3 mb-3">All Steps Completed!</h3>
+                        <p className="text-muted">Great job! You're ready to create your certificate.</p>
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
 
+// --- CertificateStep (No changes here) ---
 const CertificateStep = ({ currentUser, onLogout }) => {
     const canvasRef = useRef(null);
     const [modalMessage, setModalMessage] = useState('');
+    const [isSharing, setIsSharing] = useState(false);
     
     const certificateTemplateUrl = process.env.PUBLIC_URL + '/participation.jpeg';
-    
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -252,28 +311,67 @@ const CertificateStep = ({ currentUser, onLogout }) => {
         }
     };
 
-    const shareCertificate = async () => {
+    const handleShare = async (platform = 'default') => {
+        setIsSharing(true);
         const canvas = canvasRef.current;
-        if (!canvas) return;
+        if (!canvas) {
+            setIsSharing(false);
+            return;
+        }
 
         canvas.toBlob(async (blob) => {
-            const fileName = `certificate-${currentUser.name.replace(/\s+/g, '-')}.png`;
-            const file = new File([blob], fileName, { type: 'image/png' });
+            if (!blob) {
+                setModalMessage('Error creating certificate image.');
+                setIsSharing(false);
+                return;
+            }
+
+            const file = new File([blob], `certificate-${currentUser.name.replace(/\s+/g, '-')}.png`, { type: 'image/png' });
             const shareData = {
                 files: [file],
                 title: 'My Event Certificate',
-                text: `I just completed the event and received my certificate!`,
+                text: 'I just completed the event and received my certificate!',
             };
 
-            if (navigator.canShare && navigator.canShare(shareData)) {
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share(shareData);
                 } catch (err) {
-                    console.error("Share failed:", err.message);
+                    console.error("User cancelled share or error:", err);
+                } finally {
+                    setIsSharing(false);
                 }
-            } else {
-                setModalMessage("Web Share is not supported on your browser. Please download the certificate to share it.");
+                return;
             }
+
+            try {
+                const storageRef = ref(storage, `certificates/${currentUser.id}.png`);
+                await uploadBytes(storageRef, blob);
+                const imageUrl = await getDownloadURL(storageRef);
+
+                let shareUrl = '';
+                const text = encodeURIComponent('I just got my event certificate! Check it out: ');
+
+                if (platform === 'whatsapp') {
+                    shareUrl = `https://api.whatsapp.com/send?text=${text}${encodeURIComponent(imageUrl)}`;
+                } else if (platform === 'facebook') {
+                    shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(imageUrl)}`;
+                } else {
+                    navigator.clipboard.writeText(imageUrl);
+                    setModalMessage("Share link copied to clipboard!");
+                    setIsSharing(false);
+                    return;
+                }
+                
+                window.open(shareUrl, '_blank');
+
+            } catch (error) {
+                console.error("Sharing failed:", error);
+                setModalMessage("Could not share certificate. Please try again.");
+            } finally {
+                setIsSharing(false);
+            }
+
         }, 'image/png');
     };
     
@@ -313,16 +411,15 @@ const CertificateStep = ({ currentUser, onLogout }) => {
                             <i className="bi bi-download me-2"></i>
                             Download
                         </button>
-                        <button onClick={shareCertificate} className="btn btn-primary btn-lg">
-                            <i className="bi bi-share-fill me-2"></i>
-                            Share
+                        <button onClick={() => handleShare()} disabled={isSharing} className="btn btn-primary btn-lg">
+                            {isSharing ? <span className="spinner-border spinner-border-sm"></span> : <><i className="bi bi-share-fill me-2"></i> Share</>}
                         </button>
-                        <a href={`https://api.whatsapp.com/send?text=I just completed the event and got my certificate!`} target="_blank" rel="noopener noreferrer" className="btn btn-lg" style={{backgroundColor: '#25D366', color: 'white'}}>
-                            <i className="bi bi-whatsapp me-2"></i> Share on WhatsApp
-                        </a>
-                        <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`} target="_blank" rel="noopener noreferrer" className="btn btn-lg" style={{backgroundColor: '#1877F2', color: 'white'}}>
-                           <i className="bi bi-facebook me-2"></i> Share on Facebook
-                        </a>
+                        <button onClick={() => handleShare('whatsapp')} disabled={isSharing} className="btn btn-lg" style={{backgroundColor: '#25D366', color: 'white'}}>
+                            {isSharing ? <span className="spinner-border spinner-border-sm"></span> : <><i className="bi bi-whatsapp me-2"></i> Share on WhatsApp</>}
+                        </button>
+                        <button onClick={() => handleShare('facebook')} disabled={isSharing} className="btn btn-lg" style={{backgroundColor: '#1877F2', color: 'white'}}>
+                           {isSharing ? <span className="spinner-border spinner-border-sm"></span> : <><i className="bi bi-facebook me-2"></i> Share on Facebook</>}
+                        </button>
                     </div>
                 </div>
             </div>
